@@ -36,20 +36,15 @@ public class BatchConfiguration {
 	@Autowired
 	public DataSource dataSource;
 
-	// -----------------chunkジョブ↓---------------------
-	@Bean
-	public Job importUserJob(JobCompletionNotificationListener listener, Step chunkStep1) {
-		return jobBuilderFactory.get("importUserJob")
-				.incrementer(new RunIdIncrementer())
-				.listener(listener)
-				.flow(chunkStep1)
-				.end()
-				.build();
-	}
+	
+	// =============================
+	// Step Sample
+	// =============================
 
+	// -----------------chunkStep↓---------------------
 	@Bean
-	public Step chunkStep1() {
-		return stepBuilderFactory.get("chunkStep1")
+	public Step insertUserStep() {
+		return stepBuilderFactory.get("insertUserStep")
 				.<Person, Person> chunk(10)
 				.reader(reader())
 				.processor(processor())
@@ -83,51 +78,71 @@ public class BatchConfiguration {
 				.dataSource(dataSource)
 				.build();
 	}
-	// -----------------chunkジョブ↑---------------------
 
-	// -----------------Taskletジョブ↓---------------------
+	// -----------------TaskletStep↓---------------------
 	@Bean
-	public Job printUserJob(Step taskletStep) {
-		return jobBuilderFactory.get("printUserJob")
-				.incrementer(new RunIdIncrementer())
-				.start(taskletStep)
-				.build();
-	}
-
-	@Bean
-	public Step taskletStep() {
-		return stepBuilderFactory.get("taskletStep")
+	public Step printMessageStep() {
+		return stepBuilderFactory.get("printMessageStep")
 				.tasklet((contribution, chunkContext) -> {
 					System.out.println("Yet another Tasklet!");
 					return RepeatStatus.FINISHED;
 				})
 				.build();
 	}
-	// -----------------Taskletジョブ↑---------------------
-	  
-	// -----------------Taskletジョブと業務ロジッククラス↓---------------------
-	@Bean
-	public Job findUserJob(Step taskletStep2) {
-		return jobBuilderFactory.get("findUserJob")
-				.incrementer(new RunIdIncrementer())
-				.start(taskletStep2)
-				.build();
-	}
 
+	// -----------------TaskletStep with ServiceClass↓---------------------
 	@Bean
-	public Step taskletStep2(Tasklet serviceTasklet) {
-		return stepBuilderFactory.get("taskletStep2")
-				.tasklet(serviceTasklet)
-				.build();
-	}
-
-	@Bean
-	public Tasklet serviceTasklet(OrderService orderService) {
+	public Step orderStep(OrderService orderService) {
 	    // xxxService#execute()を実行する
 	    MethodInvokingTaskletAdapter tasklet = new MethodInvokingTaskletAdapter();
 	    tasklet.setTargetObject(orderService);
 	    tasklet.setTargetMethod("execute");
-	    return tasklet;
+		
+		return stepBuilderFactory.get("orderStep")
+				.tasklet(tasklet)
+				.build();
 	}
-	// -----------------Taskletジョブと業務ロジッククラス↑---------------------
+	
+	
+	// =============================
+	// Job Sample
+	// =============================
+
+	// インターセプトして、ジョブを呼び出す
+	@Bean
+	public Job importUserJob(JobCompletionNotificationListener listener, Step insertUserStep) {
+		return jobBuilderFactory.get("importUserJob")
+				.incrementer(new RunIdIncrementer())
+				.listener(listener)
+				.flow(insertUserStep)
+				.end()
+				.build();
+	}
+	
+	@Bean
+	public Job printUserJob(Step printMessageStep) {
+		return jobBuilderFactory.get("printUserJob")
+				.incrementer(new RunIdIncrementer())
+				.start(printMessageStep)
+				.build();
+	}
+	
+	@Bean
+	public Job findUserJob(Step orderStep) {
+		return jobBuilderFactory.get("findUserJob")
+				.incrementer(new RunIdIncrementer())
+				.start(orderStep)
+				.build();
+	}
+	
+	// 複合ジョブ
+	@Bean
+	public Job complexJob(Step insertUserStep, Step orderStep) {
+		return jobBuilderFactory.get("complexJob")
+				.incrementer(new RunIdIncrementer())
+				.start(insertUserStep)
+				.next(orderStep)
+				.build();
+	}
+	
 }
