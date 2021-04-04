@@ -41,10 +41,10 @@ public class BatchConfiguration {
 	// Step Sample
 	// =============================
 
-	// -----------------chunkStep↓---------------------
+	// -----------------ChunkStep↓---------------------
 	@Bean
-	public Step insertUserStep() {
-		return stepBuilderFactory.get("insertUserStep")
+	public Step insertUserFromCsvStep() {
+		return stepBuilderFactory.get("insertUserFromCsvStep")
 				.<Person, Person> chunk(10)
 				.reader(reader())
 				.processor(processor())
@@ -110,26 +110,26 @@ public class BatchConfiguration {
 
 	// インターセプトして、ジョブを呼び出す
 	@Bean
-	public Job importUserJob(JobCompletionNotificationListener listener, Step insertUserStep) {
-		return jobBuilderFactory.get("importUserJob")
+	public Job insertJob(JobCompletionNotificationListener listener, Step insertUserFromCsvStep) {
+		return jobBuilderFactory.get("insertJob")
 				.incrementer(new RunIdIncrementer())
 				.listener(listener)
-				.flow(insertUserStep)
+				.flow(insertUserFromCsvStep)
 				.end()
 				.build();
 	}
 	
 	@Bean
-	public Job printUserJob(Step printMessageStep) {
-		return jobBuilderFactory.get("printUserJob")
+	public Job printJob(Step printMessageStep) {
+		return jobBuilderFactory.get("printJob")
 				.incrementer(new RunIdIncrementer())
 				.start(printMessageStep)
 				.build();
 	}
 	
 	@Bean
-	public Job findUserJob(Step orderStep) {
-		return jobBuilderFactory.get("findUserJob")
+	public Job orderJob(Step orderStep) {
+		return jobBuilderFactory.get("orderJob")
 				.incrementer(new RunIdIncrementer())
 				.start(orderStep)
 				.build();
@@ -137,10 +137,10 @@ public class BatchConfiguration {
 	
 	// 複合ジョブ
 	@Bean
-	public Job complexJob(Step insertUserStep, Step orderStep) {
+	public Job complexJob(Step insertUserFromCsvStep, Step orderStep) {
 		return jobBuilderFactory.get("complexJob")
 				.incrementer(new RunIdIncrementer())
-				.start(insertUserStep)
+				.start(insertUserFromCsvStep)
 				.next(orderStep)
 				.build();
 	}
